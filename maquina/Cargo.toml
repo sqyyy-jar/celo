@@ -1,0 +1,6 @@
+[package]
+name = "maquina"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

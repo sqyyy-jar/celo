@@ -1,0 +1,11 @@
+[package]
+name = "celo-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+celo.workspace = true
+
+[[bin]]
+name = "celo"
+path = "bin/main.rs"

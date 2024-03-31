@@ -1,0 +1,11 @@
+[package]
+name = "maquina-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+maquina.workspace = true
+
+[[bin]]
+name = "maq"
+path = "bin/main.rs"

@@ -1,0 +1,7 @@
+[package]
+name = "celo"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+phf = { version = "0.11.2", features = ["macros"] }

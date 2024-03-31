@@ -1,0 +1,18 @@
+[workspace]
+resolver = "2"
+members = [
+    "./celo/",
+    "./maquina/",
+    "./celo-cli/",
+    "./maquina-cli/",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+celo = { path = "./celo/" }
+maquina = { path = "./maquina/" }
+celo-cli = { path = "./celo-cli/" }
+maquina-cli = { path = "./maquina-cli/" }

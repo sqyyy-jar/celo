@@ -2,3 +2,9 @@
 /zig-out
 **.celo
 /shell
+/_zig
+
+
+# Added by cargo
+
+/target
