@@ -222,9 +222,9 @@ impl Lexer {
             let Some(c) = self.peek() else {
                 break Ok(None);
             };
+            self.clear_location();
             self.next();
             if c.is_ascii_whitespace() {
-                self.clear_location();
                 continue;
             }
             match c {
