@@ -49,6 +49,17 @@ pub struct Location {
     pub column: u32,
 }
 
+impl Location {
+    pub fn span_to(self, other: Self) -> Self {
+        Self {
+            start: self.start,
+            end: other.end,
+            line: self.line,
+            column: self.column,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Token {
     pub location: Location,

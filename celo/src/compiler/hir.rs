@@ -2,24 +2,24 @@ use super::source::Location;
 
 #[derive(Debug)]
 pub struct Scope {
-    pub parent: Option<usize>,
-    pub name: Option<Location>,
     pub start: Option<Location>,
     pub end: Option<Location>,
     pub code: Vec<Node>,
-    pub children: Vec<(Location, usize)>,
 }
 
 impl Scope {
-    pub fn new(parent: Option<usize>, name: Option<Location>) -> Self {
+    pub fn new() -> Self {
         Self {
-            parent,
-            name,
             start: None,
             end: None,
             code: Vec::new(),
-            children: Vec::new(),
         }
+    }
+}
+
+impl Default for Scope {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -37,6 +37,7 @@ pub enum NodeKind {
     Call,
     Variable,
     Assignment(Box<Assignment>),
+    Group(Box<Group>),
     MacroIntermediate(Box<()>), // todo
 }
 
@@ -44,4 +45,11 @@ pub enum NodeKind {
 pub struct Assignment {
     pub arrow: Location,
     pub variable: Location,
+}
+
+#[derive(Debug)]
+pub struct Group {
+    pub left_paren: Location,
+    pub right_paren: Location,
+    pub nodes: Vec<Node>,
 }
