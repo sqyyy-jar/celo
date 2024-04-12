@@ -5,6 +5,7 @@ use super::{
     hir,
     lexer::Lexer,
     source::{Location, Source, Token, TokenKind},
+    Compiler,
 };
 
 #[derive(Debug)]
@@ -24,15 +25,18 @@ pub enum ParserErrorKind {
     UnexpectedEof {
         expected: Option<TokenKind>,
     },
+    UnknownMacro,
 }
 
-pub struct Parser {
-    lexer: Lexer,
+pub struct Parser<'a> {
+    pub compiler: &'a Compiler,
+    pub lexer: Lexer,
 }
 
-impl Parser {
-    pub fn new(source: Rc<Source>) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(compiler: &'a Compiler, source: Rc<Source>) -> Self {
         Self {
+            compiler,
             lexer: Lexer::new(source),
         }
     }
@@ -65,6 +69,20 @@ impl Parser {
         }
         self.lexer.consume_token()?;
         Ok(token)
+    }
+
+    pub fn parse_module(&mut self, is_submodule: bool) -> Result<hir::Module> {
+        let mut module = hir::Module::new(self.lexer.source());
+        while self.lexer.peek_token()?.is_some() {
+            let macro_token = self.expect_token(TokenKind::BangIdentifier)?.location;
+            let macro_name = &module.source[macro_token];
+            let Some(macro_handler) = self.compiler.get_macro(macro_name) else {
+                return Err(self.make_error(Some(macro_token), ParserErrorKind::UnknownMacro));
+            };
+            (macro_handler)(self)?;
+            // todo - improve
+        }
+        Ok(module)
     }
 
     /// Parses a group of nodes surrounded by curly braces.

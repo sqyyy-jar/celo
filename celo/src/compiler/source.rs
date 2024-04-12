@@ -1,4 +1,4 @@
-use std::{io, rc::Rc};
+use std::{io, ops::Index, rc::Rc};
 
 use super::error::{Error, Result};
 
@@ -57,6 +57,14 @@ impl Location {
             line: self.line,
             column: self.column,
         }
+    }
+}
+
+impl Index<Location> for Source {
+    type Output = str;
+
+    fn index(&self, index: Location) -> &Self::Output {
+        &self.content[index.start as usize..index.end as usize]
     }
 }
 

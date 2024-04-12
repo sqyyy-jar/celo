@@ -3,7 +3,7 @@ use std::{fmt::Debug, rc::Rc};
 use super::source::{Location, Source};
 
 /// Represents the entire HIR structure of a compile task.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Hir {
     pub modules: Vec<Module>,
 }
@@ -15,8 +15,18 @@ pub struct Module {
     pub functions: Vec<Function>,
 }
 
+impl Module {
+    pub fn new(source: Rc<Source>) -> Self {
+        Self {
+            source,
+            functions: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Function {
+    pub location: Location,
     pub name: Location,
     pub body: Scope,
     // todo
