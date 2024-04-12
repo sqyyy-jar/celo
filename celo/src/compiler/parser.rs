@@ -67,22 +67,18 @@ impl Parser {
         Ok(token)
     }
 
-    /// Parses a group of nodes surrounded by curly braces
-    pub fn parse_scope(&mut self, is_root: bool) -> Result<hir::Scope> {
-        let mut scope = hir::Scope::default();
-        if !is_root {
-            scope.start = Some(self.expect_token(TokenKind::LeftCurly)?.location);
-        }
+    /// Parses a group of nodes surrounded by curly braces.
+    pub fn parse_scope(&mut self) -> Result<hir::Scope> {
+        let start = self.expect_token(TokenKind::LeftCurly)?.location;
+        let mut code = Vec::new();
         while let Some(node) = self.parse_node()? {
-            scope.code.push(node);
+            code.push(node);
         }
-        if !is_root {
-            scope.end = Some(self.expect_token(TokenKind::RightCurly)?.location);
-        }
-        Ok(scope)
+        let end = self.expect_token(TokenKind::RightCurly)?.location;
+        Ok(hir::Scope::new(start, end, code))
     }
 
-    /// Parses a group of nodes surrounded by parentheses
+    /// Parses a group of nodes surrounded by parentheses.
     pub fn parse_group(&mut self) -> Result<hir::Group> {
         let left_paren = self.expect_token(TokenKind::LeftParen)?.location;
         let mut nodes = Vec::new();
@@ -90,22 +86,15 @@ impl Parser {
             nodes.push(node);
         }
         let right_paren = self.expect_token(TokenKind::RightParen)?.location;
-        Ok(hir::Group {
-            left_paren,
-            right_paren,
-            nodes,
-        })
+        Ok(hir::Group::new(left_paren, right_paren, nodes))
     }
 
-    /// Parses a node
+    /// Parses a node.
     pub fn parse_node(&mut self) -> Result<Option<hir::Node>> {
         let Some(token) = self.lexer.peek_token()? else {
             return Ok(None);
         };
-        let mut node = hir::Node {
-            location: token.location,
-            kind: hir::NodeKind::Integer, // No kind set yet
-        };
+        let mut node = hir::Node::new(token.location, hir::NodeKind::Integer); // No kind set yet
         match token.kind {
             TokenKind::Integer => {
                 self.lexer.consume_token()?;
@@ -121,10 +110,10 @@ impl Parser {
             }
             TokenKind::LeftParen => {
                 let group = self.parse_group()?;
-                node = hir::Node {
-                    location: group.left_paren.span_to(group.right_paren),
-                    kind: hir::NodeKind::Group(Box::new(group)),
-                };
+                node = hir::Node::new(
+                    group.left_paren.span_to(group.right_paren),
+                    hir::NodeKind::Group(Box::new(group)),
+                );
             }
             TokenKind::RightParen => return Ok(None),
             TokenKind::LeftSquare => unimplemented!("square-brackets?"),

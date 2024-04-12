@@ -27,8 +27,9 @@ impl Compiler {
     pub fn compile(&mut self) -> Result<()> {
         for source in &self.sources {
             let mut parser = Parser::new(source.clone());
-            let scope = parser.parse_scope(true)?;
-            eprintln!("scope {scope:#?}");
+            // let scope = parser.parse_scope()?;
+            todo!("Parse hir")
+            // eprintln!("scope {scope:#?}");
         }
         Ok(())
     }
