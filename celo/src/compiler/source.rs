@@ -22,13 +22,13 @@ pub struct Source {
 }
 
 impl Source {
-    pub fn load(path: impl Into<Rc<str>>) -> Result<Self> {
+    pub fn load(path: impl Into<Rc<str>>) -> Result<Rc<Self>> {
         let path = path.into();
         match std::fs::read_to_string(&*path) {
-            Ok(content) => Ok(Self {
+            Ok(content) => Ok(Rc::new(Self {
                 path,
                 content: content.into(),
-            }),
+            })),
             Err(err) => Err(Error::Source(Box::new(SourceError {
                 path,
                 kind: match err.kind() {

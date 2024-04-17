@@ -1,4 +1,7 @@
-use std::rc::Rc;
+use std::{
+    collections::{HashMap, VecDeque},
+    rc::Rc,
+};
 
 use super::{
     error::{Error, Result},
@@ -28,17 +31,55 @@ pub enum ParserErrorKind {
     UnknownMacro,
 }
 
-pub struct Parser<'a> {
+pub type MacroHandler = fn(&mut ParseHirStep) -> Result<()>;
+
+pub struct ParseHirStep<'a> {
     pub compiler: &'a Compiler,
     pub lexer: Lexer,
+    root_scope: MacroScope,
+    macro_scopes: Vec<MacroScope>,
+    hir: hir::Hir,
+    current_module: usize,
+    /// Queue of modules that are yet to be parsed
+    source_queue: VecDeque<usize>,
+    // todo
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(compiler: &'a Compiler, source: Rc<Source>) -> Self {
+impl<'a> ParseHirStep<'a> {
+    pub fn new(compiler: &'a Compiler, main_source: Rc<Source>) -> Self {
         Self {
             compiler,
-            lexer: Lexer::new(source),
+            lexer: Lexer::new(main_source),
+            root_scope: MacroScope::default(),
+            macro_scopes: Vec::new(),
+            hir: hir::Hir::default(),
+            current_module: 0,
+            source_queue: VecDeque::new(),
         }
+    }
+
+    pub fn add_root_macro(&mut self, name: impl Into<String>, handler: MacroHandler) {
+        self.root_scope.add(name.into(), handler);
+    }
+
+    pub fn add_local_macro(&mut self, name: impl Into<String>, handler: MacroHandler) {
+        self.macro_scopes
+            .last_mut()
+            .unwrap()
+            .add(name.into(), handler);
+    }
+
+    pub fn resolve_macro(&self, name: &str) -> Option<MacroHandler> {
+        // root-level macros cannot be overridden
+        if let Some(handler) = self.root_scope.resolve(name) {
+            return Some(handler);
+        }
+        for scope in self.macro_scopes.iter().rev() {
+            if let Some(handler) = scope.resolve(name) {
+                return Some(handler);
+            }
+        }
+        None
     }
 
     pub fn make_error(&mut self, location: Option<Location>, kind: ParserErrorKind) -> Error {
@@ -71,18 +112,30 @@ impl<'a> Parser<'a> {
         Ok(token)
     }
 
-    pub fn parse_module(&mut self, is_submodule: bool) -> Result<hir::Module> {
-        let mut module = hir::Module::new(self.lexer.source());
-        while self.lexer.peek_token()?.is_some() {
+    pub fn parse_module(&mut self, is_submodule: bool) -> Result<usize> {
+        let module_index = self.hir.modules.len();
+        let previous_module_index = self.current_module;
+        self.current_module = module_index;
+        self.hir.modules.push(hir::Module::new(self.lexer.source()));
+        self.macro_scopes.push(MacroScope::default());
+        let source = self.lexer.source();
+        loop {
+            let Some(token) = self.lexer.peek_token()? else {
+                break;
+            };
+            if token.kind != TokenKind::BangIdentifier {
+                break;
+            }
             let macro_token = self.expect_token(TokenKind::BangIdentifier)?.location;
-            let macro_name = &module.source[macro_token];
-            let Some(macro_handler) = self.compiler.get_macro(macro_name) else {
+            let macro_name = &source[macro_token].trim_end_matches('!');
+            let Some(macro_handler) = self.resolve_macro(macro_name) else {
                 return Err(self.make_error(Some(macro_token), ParserErrorKind::UnknownMacro));
             };
             (macro_handler)(self)?;
-            // todo - improve
         }
-        Ok(module)
+        self.current_module = previous_module_index;
+        self.macro_scopes.pop().unwrap();
+        Ok(module_index)
     }
 
     /// Parses a group of nodes surrounded by curly braces.
@@ -159,5 +212,29 @@ impl<'a> Parser<'a> {
             location: arrow.span_to(variable),
             kind: hir::NodeKind::Assignment(Box::new(hir::Assignment { arrow, variable })),
         })
+    }
+
+    pub fn run(mut self) -> Result<hir::Hir> {
+        _ = self.parse_module(false)?;
+        while let Some(module_index) = self.source_queue.pop_front() {
+            self.current_module = module_index;
+            self.parse_module(false)?;
+        }
+        Ok(self.hir)
+    }
+}
+
+#[derive(Default)]
+pub struct MacroScope {
+    handlers: HashMap<String, MacroHandler>,
+}
+
+impl MacroScope {
+    pub fn add(&mut self, name: impl Into<String>, handler: MacroHandler) {
+        self.handlers.insert(name.into(), handler);
+    }
+
+    pub fn resolve(&self, name: &str) -> Option<MacroHandler> {
+        self.handlers.get(name).copied()
     }
 }

@@ -1,11 +1,8 @@
-use celo::compiler::Compiler;
+use celo::compiler::{source::Source, Compiler};
 
 pub fn main(args: &[String]) -> i32 {
-    let mut compiler = Compiler::default();
-    celo::compiler::experimental::init(&mut compiler);
-    for arg in args {
-        compiler.add_source(arg.to_owned()).expect("load source");
-    }
+    let main_source = Source::load(args[0].as_str()).expect("load source");
+    let mut compiler = Compiler::new(main_source);
     compiler.compile().expect("compile program");
     0
 }

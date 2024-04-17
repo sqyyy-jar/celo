@@ -12,6 +12,7 @@ pub struct Hir {
 #[derive(Debug)]
 pub struct Module {
     pub source: Rc<Source>,
+    pub submodules: Vec<usize>,
     pub functions: Vec<Function>,
 }
 
@@ -19,6 +20,7 @@ impl Module {
     pub fn new(source: Rc<Source>) -> Self {
         Self {
             source,
+            submodules: Vec::new(),
             functions: Vec::new(),
         }
     }
