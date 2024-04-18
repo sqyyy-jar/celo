@@ -28,6 +28,11 @@ pub enum ParserErrorKind {
     UnexpectedEof {
         expected: Option<TokenKind>,
     },
+    UnmatchedBracket {
+        opening_bracket: Location,
+        expected: TokenKind,
+        got: Option<TokenKind>,
+    },
     UnknownMacro,
 }
 
@@ -78,7 +83,7 @@ impl<'a> ParseHirStep<'a> {
     pub fn add_local_macro(&mut self, name: impl Into<String>, handler: MacroHandler) {
         self.macro_scopes
             .last_mut()
-            .unwrap()
+            .expect("local scope")
             .add(name.into(), handler);
     }
 
@@ -112,21 +117,50 @@ impl<'a> ParseHirStep<'a> {
         }))
     }
 
-    pub fn expect_token(&mut self, kind: TokenKind) -> Result<Token> {
+    pub fn expect_token(&mut self, expected: TokenKind) -> Result<Token> {
         let Some(token) = self.lexer.peek_token()? else {
             return Err(self.make_error(
                 None,
                 ParserErrorKind::UnexpectedEof {
-                    expected: Some(kind),
+                    expected: Some(expected),
                 },
             ));
         };
-        if token.kind != kind {
+        if token.kind != expected {
             return Err(self.make_error(
                 Some(token.location),
                 ParserErrorKind::UnexpectedToken {
-                    expected: Some(kind),
+                    expected: Some(expected),
                     got: token.kind,
+                },
+            ));
+        }
+        self.lexer.consume_token()?;
+        Ok(token)
+    }
+
+    pub fn expect_closing_bracket(
+        &mut self,
+        expected: TokenKind,
+        opening_bracket: Location,
+    ) -> Result<Token> {
+        let Some(token) = self.lexer.peek_token()? else {
+            return Err(self.make_error(
+                None,
+                ParserErrorKind::UnmatchedBracket {
+                    opening_bracket,
+                    expected,
+                    got: None,
+                },
+            ));
+        };
+        if token.kind != expected {
+            return Err(self.make_error(
+                Some(token.location),
+                ParserErrorKind::UnmatchedBracket {
+                    opening_bracket,
+                    expected,
+                    got: Some(token.kind),
                 },
             ));
         }
@@ -147,7 +181,7 @@ impl<'a> ParseHirStep<'a> {
             let Some(token) = self.lexer.peek_token()? else {
                 break;
             };
-            if token.kind != TokenKind::BangIdentifier {
+            if is_submodule && token.kind != TokenKind::BangIdentifier {
                 break;
             }
             let macro_token = self.expect_token(TokenKind::BangIdentifier)?.location;
@@ -164,13 +198,15 @@ impl<'a> ParseHirStep<'a> {
 
     /// Parses a group of nodes surrounded by curly braces.
     pub fn parse_scope(&mut self) -> Result<hir::Scope> {
-        let start = self.expect_token(TokenKind::LeftCurly)?.location;
+        let left_curly = self.expect_token(TokenKind::LeftCurly)?.location;
         let mut code = Vec::new();
         while let Some(node) = self.parse_node()? {
             code.push(node);
         }
-        let end = self.expect_token(TokenKind::RightCurly)?.location;
-        Ok(hir::Scope::new(start, end, code))
+        let right_curly = self
+            .expect_closing_bracket(TokenKind::RightCurly, left_curly)?
+            .location;
+        Ok(hir::Scope::new(left_curly, right_curly, code))
     }
 
     /// Parses a group of nodes surrounded by parentheses.
@@ -180,7 +216,9 @@ impl<'a> ParseHirStep<'a> {
         while let Some(node) = self.parse_node()? {
             nodes.push(node);
         }
-        let right_paren = self.expect_token(TokenKind::RightParen)?.location;
+        let right_paren = self
+            .expect_closing_bracket(TokenKind::RightParen, left_paren)?
+            .location;
         Ok(hir::Group::new(left_paren, right_paren, nodes))
     }
 
