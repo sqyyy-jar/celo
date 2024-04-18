@@ -45,6 +45,7 @@ pub struct ParseHirStep<'a> {
     // todo
 }
 
+/// User facing functions
 impl<'a> ParseHirStep<'a> {
     pub fn new(compiler: &'a Compiler, main_source: Rc<Source>) -> Self {
         Self {
@@ -58,6 +59,18 @@ impl<'a> ParseHirStep<'a> {
         }
     }
 
+    pub fn run(mut self) -> Result<hir::Hir> {
+        _ = self.parse_module(false)?;
+        while let Some(module_index) = self.source_queue.pop_front() {
+            self.current_module = module_index;
+            self.parse_module(false)?;
+        }
+        Ok(self.hir)
+    }
+}
+
+/// Macro facing functions
+impl<'a> ParseHirStep<'a> {
     pub fn add_root_macro(&mut self, name: impl Into<String>, handler: MacroHandler) {
         self.root_scope.add(name.into(), handler);
     }
@@ -82,6 +95,15 @@ impl<'a> ParseHirStep<'a> {
         None
     }
 
+    pub fn add_function(&mut self, function: hir::Function) {
+        self.hir.modules[self.current_module]
+            .functions
+            .push(function);
+    }
+}
+
+/// Macro facing functions for parsing
+impl<'a> ParseHirStep<'a> {
     pub fn make_error(&mut self, location: Option<Location>, kind: ParserErrorKind) -> Error {
         Error::Parser(Box::new(ParserError {
             source: self.lexer.source(),
@@ -212,15 +234,6 @@ impl<'a> ParseHirStep<'a> {
             location: arrow.span_to(variable),
             kind: hir::NodeKind::Assignment(Box::new(hir::Assignment { arrow, variable })),
         })
-    }
-
-    pub fn run(mut self) -> Result<hir::Hir> {
-        _ = self.parse_module(false)?;
-        while let Some(module_index) = self.source_queue.pop_front() {
-            self.current_module = module_index;
-            self.parse_module(false)?;
-        }
-        Ok(self.hir)
     }
 }
 

@@ -5,6 +5,7 @@ use self::{error::Result, parser::ParseHirStep, source::Source};
 pub mod error;
 pub mod hir;
 pub mod lexer;
+pub mod mir;
 pub mod parser;
 pub mod source;
 
@@ -20,7 +21,7 @@ impl Compiler {
     pub fn compile(&mut self) -> Result<()> {
         let mut hir_step = ParseHirStep::new(self, self.main_source.clone());
         experimental::init(&mut hir_step);
-        let hir = hir_step.run();
+        let hir = hir_step.run()?;
         println!("{hir:#?}");
         // todo - implement
         Ok(())
@@ -28,7 +29,7 @@ impl Compiler {
 }
 
 pub mod experimental {
-    use super::{error::Result, parser::ParseHirStep, source::TokenKind};
+    use super::{error::Result, hir, parser::ParseHirStep, source::TokenKind};
 
     pub fn init(step: &mut ParseHirStep) {
         step.add_root_macro("fn", macro_fn);
@@ -37,7 +38,7 @@ pub mod experimental {
     fn macro_fn(step: &mut ParseHirStep) -> Result<()> {
         let name = step.expect_token(TokenKind::Identifier)?.location;
         let scope = step.parse_scope()?;
-        println!("fn {name:?} {scope:#?}");
+        step.add_function(hir::Function::new(name.span_to(scope.end), name, scope));
         Ok(())
     }
 }

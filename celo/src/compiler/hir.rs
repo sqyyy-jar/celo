@@ -34,6 +34,16 @@ pub struct Function {
     // todo
 }
 
+impl Function {
+    pub fn new(location: Location, name: Location, body: Scope) -> Self {
+        Self {
+            location,
+            name,
+            body,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Scope {
     pub start: Location,
