@@ -3,6 +3,7 @@
 **.celo
 /shell
 /_zig
+/_test
 
 
 # Added by cargo
