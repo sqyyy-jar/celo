@@ -5,7 +5,7 @@ use super::source::{Location, Source};
 /// Represents the entire HIR structure of a compile task.
 #[derive(Debug, Default)]
 pub struct Hir {
-    pub modules: Vec<Module>,
+    pub modules: Vec<Box<Module>>,
 }
 
 /// Represents a module or a submodule created by a macro.
@@ -13,7 +13,7 @@ pub struct Hir {
 pub struct Module {
     pub source: Rc<Source>,
     pub submodules: Vec<usize>,
-    pub functions: Vec<Function>,
+    pub functions: Vec<Box<Function>>,
 }
 
 impl Module {

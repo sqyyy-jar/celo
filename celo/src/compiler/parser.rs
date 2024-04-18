@@ -98,7 +98,7 @@ impl<'a> ParseHirStep<'a> {
     pub fn add_function(&mut self, function: hir::Function) {
         self.hir.modules[self.current_module]
             .functions
-            .push(function);
+            .push(Box::new(function));
     }
 }
 
@@ -138,7 +138,9 @@ impl<'a> ParseHirStep<'a> {
         let module_index = self.hir.modules.len();
         let previous_module_index = self.current_module;
         self.current_module = module_index;
-        self.hir.modules.push(hir::Module::new(self.lexer.source()));
+        self.hir
+            .modules
+            .push(Box::new(hir::Module::new(self.lexer.source())));
         self.macro_scopes.push(MacroScope::default());
         let source = self.lexer.source();
         loop {
